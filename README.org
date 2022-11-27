@@ -1,0 +1,79 @@
+* PQ
+[[https://platformio.org/][PlatformIO]] quick; a quick wrapper over ~pio~.
+
+** Usage
+Just type ~pq~ and it will provide options or guess what is best to be done.
+
+** Example
+#+begin_src fundamental
+  ~> pq
+  QUESTION: What to do?
+       1  New project
+       2  Serial TTY
+  1
+  ANSWER: New project
+  QUESTION: Select project path:
+  blinky
+
+  ~> cd blinky/
+  blinky> ls
+  src  platformio.ini
+
+  blinky> pq
+  QUESTION: What to do?
+       1  New project
+       2  Build
+       3  Serial TTY
+       4  Upload
+  4
+  ANSWER: Upload
+  QUESTION: Select build environment:
+       1  esp32dev
+       2  nodemcuv2
+       3  uno
+  1
+  ANSWER: esp32dev
+  QUESTION: Select serial tty baud rate:
+       1  115200
+       2  9600
+       3  300
+       4  600
+       5  1200
+       6  2400
+       7  4800
+       8  14400
+       9  19200
+      10  38400
+      11  57600
+      12  230400
+      13  460800
+  1
+  ANSWER: 115200
+  $ pio run -t upload -e esp32dev --upload-port /dev/ttyACM0
+  QUESTION: Run the command above?
+       1  Yes
+       2  No
+  1
+  ANSWER: Yes
+  Processing esp32dev (platform: espressif32; board: esp32dev; framework: arduino)
+  ...
+#+end_src
+
+** Why?
+Too lazy to write a full ~pio~ command. Typing two characters should be more than enough.
+
+** Dependencies
+For serial monitor, any of the following:
+- pyserial-miniterm
+- picocom
+- cu
+
+Optionally, [[https://github.com/junegunn/fzf][fzf]] for nicer menus.
+
+** Installation
+#+begin_src shell-script
+  make install
+#+end_src
+
+** License
+GPL3
