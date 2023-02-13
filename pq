@@ -168,19 +168,7 @@ init() {
 
 start_serial() {
     while :; do
-        if exists pyserial-miniterm; then
-            info 'Stop with C-]'
-            run pyserial-miniterm "$dev" "$speed" --raw
-        elif exists picocom; then
-            info 'Stop with C-a C-x and then C-c'
-            run picocom -b "$speed" "$dev"
-        elif exists cu; then
-            info 'Stop with ESC Enter ~ .'
-            run cu -l "$dev" -s "$speed"
-        else
-            err 'No serial monitor utility found'
-            return 1
-        fi
+        run pio device monitor -p "$dev" -b "$speed" --raw
         info 'Now C-c to stop'
         sleep 1
     done

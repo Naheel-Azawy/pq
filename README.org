@@ -63,12 +63,8 @@ Just type ~pq~ and it will provide options or guess what is best to be done.
 Too lazy to write a full ~pio~ command. Typing two characters should be more than enough.
 
 ** Dependencies
-For serial monitor, any of the following:
-- pyserial-miniterm
-- picocom
-- cu
-
-Optionally, [[https://github.com/junegunn/fzf][fzf]] for nicer menus.
+- ~pio~
+- Optionally, [[https://github.com/junegunn/fzf][fzf]] for nicer menus.
 
 ** Installation
 #+begin_src shell-script
