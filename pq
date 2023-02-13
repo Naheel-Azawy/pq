@@ -245,7 +245,7 @@ main() {
     devs=$(find /dev/ -maxdepth 1 -name 'ttyACM*' -or -name 'ttyUSB*' |
                sort -nr)
     if [ -n "$devs" ]; then
-        [ -n "$devs" ] && options="${options}Serial TTY\n"
+        [ -n "$devs" ] && options="${options}Serial monitor\n"
         [ -f ./platformio.ini ] && [ -n "$devs" ] && options="${options}Upload\n"
     fi
 
@@ -253,7 +253,7 @@ main() {
     if [ -n "$init_at" ]; then
         option='New project'
     elif [ -n "$tty_only" ]; then
-        option='Serial TTY'
+        option='Serial monitor'
     elif [ -n "$build_only" ]; then
         option='Build'
     else
