@@ -167,11 +167,7 @@ init() {
 }
 
 start_serial() {
-    while :; do
-        run pio device monitor -p "$dev" -b "$speed" --raw
-        info 'Now C-c to stop'
-        sleep 1
-    done
+    run pio device monitor -p "$dev" -b "$speed" --raw
 }
 
 set_dev() {
@@ -291,7 +287,7 @@ main() {
             set_env &&
                 run pio run -e "$env" ;;
 
-        'Serial TTY')
+        'Serial monitor')
             set_dev && set_speed &&
                 start_serial ;;
 
