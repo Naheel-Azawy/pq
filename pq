@@ -103,10 +103,11 @@ run_ask() {
 usage() {
     bin=$(basename "$0")
     echo "usage $bin [OPTION]..."
-    echo '  -i=PATH    init a new project'
-    echo '  -p=DEV     port'
-    echo '  -s=SPEED   baud rate'
-    echo '  -e=ENV     pio environment'
+    echo '  -r ARGS    raw pio command'
+    echo '  -i PATH    init a new project'
+    echo '  -p DEV     port'
+    echo '  -s SPEED   baud rate'
+    echo '  -e ENV     pio environment'
     echo '  -t         tty only'
     echo '  -b         build only'
     echo '  -h         show this help'
@@ -124,6 +125,29 @@ parse_args() {
             *) usage; return 1      ;;
         esac
     done
+}
+
+# shellcheck disable=SC1091
+prepare_pio() {
+    if ! exists pio; then
+        pio_path="$HOME/.local/share/platformio"
+        if ! [ -d "$pio_path" ]; then
+            info 'Installing platformio...'
+            (mkdir -p "$pio_path"                   &&
+                 cd "$pio_path"                     &&
+                 python3 -m virtualenv pio-env      &&
+                 . "$pio_path/pio-env/bin/activate" &&
+                 pip install platformio
+            )
+        fi
+        if ! [ -d "$pio_path" ]; then
+            err 'No platformio installation found'
+        else
+            . "$pio_path/pio-env/bin/activate"
+        fi
+    fi
+    pio_bin=$(which pio)
+    info "Using $pio_bin"
 }
 
 init() {
@@ -237,6 +261,12 @@ set_speed() {
 }
 
 main() {
+    prepare_pio || return
+    if [ "$1" = '-r' ]; then
+        shift
+        exec pio "$@"
+    fi
+
     parse_args "$@" || return
 
     # possible options
