@@ -228,7 +228,8 @@ set_speed() {
     if [ "$speed" = s ] || [ -z "$speed" ]; then
         # check platform.ini file
         if [ -f ./platformio.ini ]; then
-            ini_speed=$(sed -rn 's/monitor_speed *= *(.+)/\1/p' ./platformio.ini)
+            ini_speed=$(sed -rn 's/monitor_speed *= *(.+)/\1/p' ./platformio.ini |
+                     head -n1)
             if echo "$SPEEDS" | grep -q "$ini_speed"; then
                 # is a valid baud rate
                 speed="$ini_speed"
