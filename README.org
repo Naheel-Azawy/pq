@@ -1,5 +1,5 @@
 * PQ
-[[https://platformio.org/][PlatformIO]] quick; a quick wrapper over ~pio~.
+[[https://platformio.org/][PlatformIO]] quick; a quick wrapper over ~pio~, ~apio~, and esp's ~idf.py~.
 
 ** Usage
 Just type ~pq~ and it will provide options or guess what is best to be done.
@@ -64,6 +64,7 @@ Too lazy to write a full ~pio~ command. Typing two characters should be more tha
 
 ** Dependencies
 - ~pio~
+- Optionally, ~apio~ and/or ~idf.py~
 - Optionally, [[https://github.com/junegunn/fzf][fzf]] for nicer menus.
 
 ** Installation

@@ -2,6 +2,7 @@
 
 # platformio quick
 
+toolchain=
 init_at=
 speed=
 devs=
@@ -30,6 +31,8 @@ B='\033[1m\033[34m' # blue
 C='\033[1m\033[36m' # cyan
 E='\033[1m\033[31m' # red
 R='\033[0m'         # reset
+
+export MENUCONFIG_STYLE='aquatic list=fg:white,bg:black' # for idf.py
 
 info() {
     printf "${B}INFO:${R} %s\n" "$@"
@@ -103,7 +106,7 @@ run_ask() {
 usage() {
     bin=$(basename "$0")
     echo "usage $bin [OPTION]..."
-    echo '  -r ARGS    raw pio command'
+    echo '  -r ARGS    execute raw command'
     echo '  -i PATH    init a new project'
     echo '  -p DEV     port'
     echo '  -s SPEED   baud rate'
@@ -147,10 +150,79 @@ prepare_pio() {
         fi
     fi
     pio_bin=$(which pio)
-    info "Using $pio_bin"
+    info "Using pio: $pio_bin"
+}
+
+# shellcheck disable=SC1091
+prepare_apio() {
+    if ! exists apio; then
+        apio_path="$HOME/.local/share/apio"
+        if ! [ -d "$apio_path" ]; then
+            info 'Installing apio...'
+            (mkdir -p "$apio_path"                   &&
+                 cd "$apio_path"                     &&
+                 python3 -m virtualenv pio-env      &&
+                 . "$apio_path/pio-env/bin/activate" &&
+                 pip install apio
+            )
+        fi
+        if ! [ -d "$apio_path" ]; then
+            err 'No apio installation found'
+        else
+            . "$apio_path/pio-env/bin/activate"
+        fi
+    fi
+    apio_bin=$(which apio)
+    info "Using apio: $apio_bin"
+}
+
+# shellcheck disable=SC1090
+prepare_idf() {
+    if [ -z "$IDF_PATH" ]; then
+        IDF_PATH="$HOME/.local/share/esp/esp-idf"
+        esp_idf_exports="$IDF_PATH/export.sh"
+        if [ -f "$esp_idf_exports" ]; then
+            # . "$esp_idf_exports"
+            # the above is too slow, but safe
+            # but since this script will re-do this on every run, let's take the risk
+
+            export IDF_PATH
+            # Call idf_tools.py to export tool paths
+            export IDF_TOOLS_EXPORT_CMD="${IDF_PATH}/export.sh"
+            export IDF_TOOLS_INSTALL_CMD="${IDF_PATH}/install.sh"
+            # Allow calling some IDF python tools without specifying the full path
+            # ${IDF_PATH}/tools is already added by 'idf_tools.py export'
+            IDF_ADD_PATHS_EXTRAS="${IDF_PATH}/components/espcoredump"
+            IDF_ADD_PATHS_EXTRAS="${IDF_ADD_PATHS_EXTRAS}:${IDF_PATH}/components/partition_table"
+            IDF_ADD_PATHS_EXTRAS="${IDF_ADD_PATHS_EXTRAS}:${IDF_PATH}/components/app_update"
+
+            idf_exports=$(python3 "${IDF_PATH}/tools/idf_tools.py" export "--add_paths_extras=${IDF_ADD_PATHS_EXTRAS}") || return 1
+            eval "${idf_exports}"
+            export PATH="${IDF_ADD_PATHS_EXTRAS}:${PATH}"
+        else
+            mkdir -p "$HOME/.local/share/esp" &&
+                cd "$HOME/.local/share/esp" &&
+                git clone --recursive https://github.com/espressif/esp-idf.git &&
+                cd esp-idf &&
+                ./install.fish esp32
+        fi
+    fi
+
+    idf_bin=$(which idf.py)
+    info "Using idf.py: $idf_bin"
+}
+
+prepare() {
+    case "$toolchain" in
+        apio) prepare_apio ;;
+        idf)  prepare_idf  ;;
+        *)    prepare_pio  ;;
+    esac
 }
 
 init() {
+    # TODO: init for other toolchains
+
     path=${1-.}
     mkdir -p "$path/src"
 
@@ -261,23 +333,87 @@ set_speed() {
     fi
 }
 
+set_toolchain() {
+    if [ -f ./platformio.ini ]; then
+        toolchain=pio
+    elif [ -f ./apio.ini ]; then
+        toolchain=apio
+    elif [ -f ./sdkconfig ] && grep -q ESP-IDF ./sdkconfig; then
+        toolchain=idf
+    else
+        toolchain=pio
+    fi
+}
+
+cwd_buildable() {
+    [ -f ./platformio.ini ] ||
+        [ -f ./apio.ini ] ||
+        { [ -f ./sdkconfig ] && grep -q ESP-IDF ./sdkconfig; }
+}
+
+build() {
+    case "$toolchain" in
+        pio)
+            set_env && run pio run -e "$env" ;;
+        apio)
+            run apio build ;;
+        idf)
+            run idf.py build ;;
+    esac
+}
+
+upload() {
+    case "$toolchain" in
+        pio)
+            set_env && set_dev && set_speed &&
+                run_ask pio run -t upload -e "$env" --upload-port "$dev" &&
+                start_serial ;;
+        apio)
+            run apio build && run apio upload ;;
+        idf)
+            run idf.py build upload monitor ;;
+    esac
+}
+
+monitor() {
+    case "$toolchain" in
+        pio|apio)
+            set_dev && set_speed && start_serial ;;
+        idf)
+            run idf.py monitor ;;
+    esac
+}
+
 main() {
-    prepare_pio || return
+    set_toolchain
+
     if [ "$1" = '-r' ]; then
         shift
-        exec pio "$@"
+        cmd="$1"
+        case "$cmd" in
+            pio)        prepare_pio             ;;
+            apio)       prepare_apio            ;;
+            idf.py)     prepare_idf             ;;
+            idf)        prepare_idf; cmd=idf.py ;;
+            *)
+                err "unknown command '$1'"
+                return 1
+        esac
+        shift
+        exec "$cmd" "$@"
     fi
 
+    prepare || return
     parse_args "$@" || return
 
     # possible options
     options='New project\n'
-    [ -f ./platformio.ini ] && options="${options}Build\n"
+    cwd_buildable && options="${options}Build\n"
     devs=$(find /dev/ -maxdepth 1 -name 'ttyACM*' -or -name 'ttyUSB*' |
                sort -nr)
     if [ -n "$devs" ]; then
         [ -n "$devs" ] && options="${options}Serial monitor\n"
-        [ -f ./platformio.ini ] && [ -n "$devs" ] && options="${options}Upload\n"
+        cwd_buildable && [ -n "$devs" ] && options="${options}Upload\n"
     fi
 
     # args option, if any
@@ -314,18 +450,9 @@ main() {
             }
             init "$init_at" ;;
 
-        'Build')
-            set_env &&
-                run pio run -e "$env" ;;
-
-        'Serial monitor')
-            set_dev && set_speed &&
-                start_serial ;;
-
-        'Upload')
-            set_env && set_dev && set_speed &&
-                run_ask pio run -t upload -e "$env" --upload-port "$dev" &&
-                start_serial ;;
+        'Build')          build   ;;
+        'Upload')         upload  ;;
+        'Serial monitor') monitor ;;
 
         '')
             return 1 ;;
